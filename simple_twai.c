@@ -1,19 +1,9 @@
 #include <string.h>
 #include "simple_twai.h"
 
-esp_err_t init_normal_twai()
-{
-    printf("Initializing normal TWAI\n");
+#define DEFAULT_TWAI_TX_WAIT_MS 1000
+#define DEFAULT_TWAI_RX_WAIT_MS 1000
 
-    return ESP_OK;
-}
-
-esp_err_t init_listener_twai()
-{
-    printf("Initializing listener TWAI\n");
-
-    return ESP_OK;
-}
 
 twai_message_t std_data_twai_msg(uint32_t id, uint8_t *data, uint8_t dlc)
 {
@@ -73,4 +63,24 @@ twai_message_t ext_remote_twai_msg(uint32_t id)
     msg.data_length_code = 0;
 
     return msg;
+}
+
+esp_err_t start_twai_bus(twai_handle_t twai_bus)
+{    
+    return twai_start_v2(twai_bus);
+}
+
+esp_err_t stop_twai_bus(twai_handle_t twai_bus)
+{
+    return twai_stop_v2(twai_bus);
+}
+
+esp_err_t send_twai_msg(twai_handle_t twai_bus, twai_message_t msg)
+{
+    return twai_transmit_v2(twai_bus, &msg, pdMS_TO_TICKS(DEFAULT_TWAI_TX_WAIT_MS));
+}
+
+esp_err_t receive_twai_msg(twai_handle_t twai_bus, twai_message_t* msg)
+{
+    return twai_receive_v2(twai_bus, msg, pdMS_TO_TICKS(DEFAULT_TWAI_RX_WAIT_MS));
 }
