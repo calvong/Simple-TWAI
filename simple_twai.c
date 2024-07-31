@@ -4,6 +4,9 @@
 #define DEFAULT_TWAI_TX_WAIT_MS 1000
 #define DEFAULT_TWAI_RX_WAIT_MS 1000
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 esp_err_t init_normal_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id)
 {
@@ -118,3 +121,7 @@ void id_to_acceptance_filter(uint32_t* acceptance_id, uint32_t* code, uint32_t* 
 {
 
 }
+
+#ifdef __cplusplus
+}
+#endif

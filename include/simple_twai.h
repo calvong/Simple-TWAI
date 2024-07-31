@@ -3,6 +3,10 @@
 
 #include <driver/twai.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // simple initialisation functions
 esp_err_t init_normal_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
 esp_err_t init_listener_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
@@ -23,5 +27,9 @@ esp_err_t receive_twai_msg(twai_handle_t twai_bus, twai_message_t* msg);
 
 // helper functions
 void id_to_acceptance_filter(uint32_t* acceptance_id, uint32_t* code, uint32_t* mask, bool* is_single);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
