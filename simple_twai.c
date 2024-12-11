@@ -12,7 +12,7 @@ esp_err_t init_normal_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_
 {
     //Initialize configuration structures using macro initializers
     twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(tx_pin, rx_pin, TWAI_MODE_NORMAL);
-    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();  // default to 500kbps
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_1MBITS();  // default to 500kbps
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
     
     // if (accpetance_id != NULL) 
