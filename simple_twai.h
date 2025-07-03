@@ -23,6 +23,7 @@ twai_message_t ext_remote_twai_msg(uint32_t id);
 esp_err_t start_twai_bus(twai_handle_t twai_bus);
 esp_err_t stop_twai_bus(twai_handle_t twai_bus);
 esp_err_t send_twai_msg(twai_handle_t twai_bus, twai_message_t msg);
+esp_err_t simply_send_twai_msg(twai_handle_t twai_bus, uint32_t id, uint8_t* data, uint8_t dlc);
 esp_err_t receive_twai_msg(twai_handle_t twai_bus, twai_message_t* msg);
 
 // helper functions

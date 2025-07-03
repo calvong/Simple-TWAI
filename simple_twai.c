@@ -112,6 +112,12 @@ esp_err_t send_twai_msg(twai_handle_t twai_bus, twai_message_t msg)
     return twai_transmit_v2(twai_bus, &msg, pdMS_TO_TICKS(DEFAULT_TWAI_TX_WAIT_MS));
 }
 
+esp_err_t simply_send_twai_msg(twai_handle_t twai_bus, uint32_t id, uint8_t* data, uint8_t dlc)
+{
+    twai_message_t msg = std_data_twai_msg(id, data, dlc);
+    return send_twai_msg(twai_bus, msg);
+}
+
 esp_err_t receive_twai_msg(twai_handle_t twai_bus, twai_message_t* msg)
 {
     return twai_receive_v2(twai_bus, msg, pdMS_TO_TICKS(DEFAULT_TWAI_RX_WAIT_MS));
