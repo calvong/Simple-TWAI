@@ -2,35 +2,22 @@
 #define SIMPLE_TWAI_H
 
 #include <driver/twai.h>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-// simple initialisation functions
-esp_err_t init_normal_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
-esp_err_t init_listener_twai(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
-esp_err_t init_normal_twai_w_ISR(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
-esp_err_t init_listener_twai_w_ISR(twai_handle_t* twai_bus, gpio_num_t tx_pin, gpio_num_t rx_pin, uint32_t* accpetance_id);
+class SimpleTWAI 
+{
+public:
+    SimpleTWAI(uint8_t tx_pin, uint8_t rx_pin, std::string mode="normal", twai_timing_config_t timing=TWAI_TIMING_CONFIG_1MBITS());
+    void start();
+    void stop();
 
-// simple message creation functions
-twai_message_t std_data_twai_msg(uint32_t id, uint8_t* data, uint8_t dlc);
-twai_message_t std_remote_twai_msg(uint32_t id);
-twai_message_t ext_data_twai_msg(uint32_t id, uint8_t* data, uint8_t dlc);
-twai_message_t ext_remote_twai_msg(uint32_t id);
+    void send(uint32_t id, uint8_t* data, uint8_t dlc, bool isExtended=false, bool isRemote=false);
+    twai_message_t receive(uint16_t timeout_ms=10000);
+    void waitForMsg(uint32_t id, std::string msgToMatch="");
 
-// simple bus control functions
-esp_err_t start_twai_bus(twai_handle_t twai_bus);
-esp_err_t stop_twai_bus(twai_handle_t twai_bus);
-esp_err_t send_twai_msg(twai_handle_t twai_bus, twai_message_t msg);
-esp_err_t simply_send_twai_msg(twai_handle_t twai_bus, uint32_t id, uint8_t* data, uint8_t dlc);
-esp_err_t receive_twai_msg(twai_handle_t twai_bus, twai_message_t* msg);
-
-// helper functions
-void id_to_acceptance_filter(uint32_t* acceptance_id, uint32_t* code, uint32_t* mask, bool* is_single);
-
-#ifdef __cplusplus
-}
-#endif
+private:
+    twai_handle_t twai_bus_;
+};
 
 #endif
