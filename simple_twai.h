@@ -5,6 +5,7 @@
 #include <esp_twai_onchip.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/task.h>
 #include <cstdint>
 #include <string>
 
@@ -22,6 +23,16 @@ struct SimpleTWAIMsg_t
 
 // Minimal wrapper around the ESP-IDF v5.4+ TWAI "Node" driver for sending and
 // receiving CAN/TWAI frames.
+//
+// Bus-off recovery: every instance runs a small supervisor task for its own
+// lifetime that polls twai_node_get_info() and, on seeing TWAI_ERROR_BUS_OFF,
+// calls twai_node_recover() and waits for the node to come back before
+// resuming its poll. Without this, a board that loses its bus partner (no
+// acks -> TEC += 8/frame -> bus-off in well under a second at telemetry
+// rates) goes permanently silent even after the partner returns - CRAB never
+// noticed because it's always plugged into something, but a rack sensor hub
+// is not. This is transparent to callers: start()/stop()/send()/receive()
+// behave exactly as before.
 class SimpleTWAI
 {
 public:
@@ -79,11 +90,18 @@ private:
     // needed and restores the previous state afterward.
     void applyMaskFilter_(const twai_mask_filter_config_t &cfg, const char *errCtx);
 
+    // Bus-off supervisor: runs for the lifetime of the instance (started in
+    // the constructor, deleted in the destructor), independent of
+    // start()/stop(), since bus-off can only happen once the node is
+    // actually enabled and there is no harm in the task idling otherwise.
+    static void busOffSupervisorTask_(void *arg);
+
     twai_node_handle_t node_ = nullptr;
     QueueHandle_t rxQueue_ = nullptr;
     RxCallback userRxCb_ = nullptr;
     void *userRxCtx_ = nullptr;
     bool running_ = false;
+    TaskHandle_t busOffSupervisorHandle_ = nullptr;
 };
 
 #endif

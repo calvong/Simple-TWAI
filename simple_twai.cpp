@@ -6,6 +6,20 @@
 #include <cstring>
 #include <esp_attr.h>
 
+namespace
+{
+// Bus-off is only every checked on this cadence; recovery is only initiated
+// after seeing it, so this is a detection latency bound, not a recovery-time
+// one. Short enough that a rack hub rejoins well within one 500ms telemetry
+// cycle once its partner comes back.
+constexpr uint32_t BUS_OFF_POLL_MS = 100;
+// After twai_node_recover() is requested, poll faster while waiting for the
+// node to actually leave TWAI_ERROR_BUS_OFF (128 consecutive bus-idle
+// periods per the CAN spec - a handful of ms on a quiet bus).
+constexpr uint32_t BUS_OFF_RECOVERY_POLL_MS = 20;
+constexpr uint32_t BUS_OFF_RECOVERY_TIMEOUT_MS = 1000;
+} // namespace
+
 SimpleTWAI::SimpleTWAI(uint8_t tx_pin, uint8_t rx_pin, std::string mode, std::string timing)
 {
     uint32_t bitrate = parseBitrate_(timing);
@@ -48,10 +62,16 @@ SimpleTWAI::SimpleTWAI(uint8_t tx_pin, uint8_t rx_pin, std::string mode, std::st
     twai_node_register_event_callbacks(node_, &cbs, this);
 
     setReceiveAll();
+
+    // Runs for the life of this instance, independent of start()/stop() -
+    // see the class comment in simple_twai.h.
+    xTaskCreate(&SimpleTWAI::busOffSupervisorTask_, "twaiBusOffSup", 3072, this, 3,
+                &busOffSupervisorHandle_);
 }
 
 SimpleTWAI::~SimpleTWAI()
 {
+    if (busOffSupervisorHandle_) vTaskDelete(busOffSupervisorHandle_);
     if (node_)
     {
         twai_node_disable(node_); // Harmless if not currently enabled.
@@ -259,6 +279,47 @@ IRAM_ATTR bool SimpleTWAI::onRxDone_(twai_node_handle_t handle, const twai_rx_do
     if (self->userRxCb_) self->userRxCb_(msg, self->userRxCtx_);
 
     return higherPrioWoken == pdTRUE;
+}
+
+void SimpleTWAI::busOffSupervisorTask_(void *arg)
+{
+    SimpleTWAI *self = static_cast<SimpleTWAI *>(arg);
+
+    for (;;)
+    {
+        vTaskDelay(pdMS_TO_TICKS(BUS_OFF_POLL_MS));
+
+        twai_node_status_t status = {};
+        twai_node_record_t stats = {};
+        if (twai_node_get_info(self->node_, &status, &stats) != ESP_OK) continue;
+        if (status.state != TWAI_ERROR_BUS_OFF) continue;
+
+        printf("SimpleTWAI: bus-off detected (tx_err=%u rx_err=%u) - initiating recovery\n",
+               status.tx_error_count, status.rx_error_count);
+
+        esp_err_t err = twai_node_recover(self->node_);
+        if (err != ESP_OK)
+        {
+            printf("SimpleTWAI: bus-off recovery request failed: %s\n", esp_err_to_name(err));
+            continue; // try again next poll
+        }
+
+        uint32_t waited = 0;
+        while (waited < BUS_OFF_RECOVERY_TIMEOUT_MS)
+        {
+            vTaskDelay(pdMS_TO_TICKS(BUS_OFF_RECOVERY_POLL_MS));
+            waited += BUS_OFF_RECOVERY_POLL_MS;
+            if (twai_node_get_info(self->node_, &status, &stats) == ESP_OK &&
+                status.state != TWAI_ERROR_BUS_OFF)
+            {
+                printf("SimpleTWAI: bus-off recovery complete (state=%d)\n", (int)status.state);
+                break;
+            }
+        }
+        // Falls back to the outer poll loop either way - if recovery didn't
+        // finish in time, the next outer poll sees BUS_OFF again and retries
+        // twai_node_recover(), which is harmless to call repeatedly.
+    }
 }
 
 uint32_t SimpleTWAI::parseBitrate_(const std::string &timing)
